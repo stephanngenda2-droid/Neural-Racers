@@ -1,42 +1,13 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Neural Racers — AI Racing Lab</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./style.css">
-</head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Neural Racers</title><link rel="stylesheet" href="style.css"></head>
 <body>
-<div class="app">
-  <header class="topbar"><div class="brand"><div class="brand-mark">N<span>R</span></div><div><strong>NEURAL RACERS</strong><small>AUTONOMOUS RACING LAB</small></div></div><div class="top-meta"><span class="live-dot"></span><span id="runStatus">SIMULATION READY</span><span class="divider"></span><span>WEBGL / 3D</span></div><div class="top-actions"><button id="pauseBtn" class="btn primary">▶ Start simulation</button><button id="resetBtn" class="btn">↻ Reset</button></div></header>
-  <main class="layout">
-    <aside class="panel controls">
-      <div class="panel-head"><span>01 / CONTROL ROOM</span><span class="tiny-live">● LIVE</span></div>
-      <section><h3>Simulation</h3><div class="button-row"><button id="stepBtn" class="btn small">Step frame</button><button id="newTrackBtn" class="btn small">New track ↗</button></div>
-      <label>Simulation speed <b id="speedVal">1×</b></label><input id="speed" type="range" min="1" max="5" value="1">
-      <label>AI population <b id="populationVal">36 cars</b></label><input id="population" type="range" min="12" max="60" step="4" value="36">
-      <label>Track complexity <b id="complexityVal">5 / 10</b></label><input id="complexity" type="range" min="1" max="10" value="5">
-      <label>Road width <b id="roadWidthVal">12 m</b></label><input id="roadWidth" type="range" min="8" max="18" value="12">
-      </section>
-      <section><h3>Display options</h3><label class="check"><span>Sensor rays</span><input id="sensorsToggle" type="checkbox"></label><label class="check"><span>Agent labels</span><input id="labelsToggle" type="checkbox" checked></label><label class="check"><span>Racing trails</span><input id="trailsToggle" type="checkbox" checked></label><label class="check"><span>Car collisions</span><input id="collisionsToggle" type="checkbox"></label></section>
-      <section><h3>Track profile</h3><select id="trackPreset"><option value="beginner">Beginner circuit</option><option value="technical">Technical circuit</option><option value="hairpin">Hairpin circuit</option><option value="speed">High-speed circuit</option><option value="random">Random circuit</option></select><div class="track-mini"><div class="track-icon">⌁</div><div><b id="trackName">Beginner Circuit</b><small id="trackDesc">Wide roads · gentle corners</small></div></div></section>
-      <section class="action-stack"><button class="btn full" id="saveBtn">↓ Save best model</button><button class="btn full" id="exportBtn">⇩ Export experiment CSV</button><button class="btn full" id="restartBtn">⟲ Restart experiment</button><input id="loadModel" type="file" accept=".json" hidden><button class="btn full" id="loadBtn">↑ Load model JSON</button></section>
-      <div class="footnote">NEUROEVOLUTION ENGINE <span>v1.0.0</span><br>Models learn through measured track progress, selection and mutation.</div>
-    </aside>
-    <section class="center-column">
-      <div class="race-toolbar"><div><span class="eyebrow">LIVE SIMULATION</span><h1>Race <span class="accent">overview</span></h1></div><div class="race-badges"><span class="badge"><i class="green-dot"></i> <span id="activeBadge">36</span> ACTIVE</span><span class="badge">GEN <b id="genBadge">01</b></span></div></div>
-      <div class="viewport-wrap"><div id="viewport"></div><div class="viewport-hud"><div><small>TRACK</small><b id="hudTrack">BEGINNER CIRCUIT</b></div><div><small>ELAPSED</small><b id="elapsed">00:00.0</b></div><div><small>LEADER</small><b id="leaderHud">—</b></div></div><div class="view-legend"><span><i class="legend-dot cyan"></i> Selected</span><span><i class="legend-dot orange"></i> AI agents</span><span><i class="legend-line"></i> Sensor ray</span></div></div>
-      <div class="stats-grid"><div class="metric"><span>BEST FITNESS</span><strong id="bestFitness">0.0</strong><small>Current generation</small></div><div class="metric"><span>AVG FITNESS</span><strong id="avgFitness">0.0</strong><small>Population mean</small></div><div class="metric"><span>LAPS COMPLETED</span><strong id="laps">0</strong><small>Verified crossings</small></div><div class="metric"><span>CRASHED</span><strong id="crashed">0</strong><small>Current generation</small></div></div>
-      <div class="lower-grid"><div class="panel chart-panel"><div class="panel-head"><span>LEARNING CURVE</span><span class="chart-legend"><i class="legend-dot cyan"></i> Best <i class="legend-dot orange"></i> Mean</span></div><canvas id="chart" height="150"></canvas><div class="chart-foot"><span>Fitness per generation</span><span id="chartCount">0 generations recorded</span></div></div>
-      <div class="panel network-panel"><div class="panel-head"><span>NEURAL NETWORK</span><span id="networkAgent">AGENT —</span></div><canvas id="network" height="150"></canvas><div class="network-foot"><span>7 sensor inputs → 10 hidden → 3 controls</span><span id="outputs">STEER 0.00 · GAS 0.00 · BRAKE 0.00</span></div></div></div>
-    </section>
-    <aside class="panel analytics"><div class="panel-head"><span>02 / TELEMETRY</span><span class="tiny-live">LIVE DATA</span></div>
-      <div class="leader-card"><div class="leader-top"><span>CURRENT LEADER</span><span class="leader-rank">#01</span></div><div class="leader-name" id="leaderName">Waiting for race</div><div class="leader-details"><span>FITNESS <b id="leaderFitness">—</b></span><span>SPEED <b id="leaderSpeed">—</b></span></div><div class="leader-progress"><span id="leaderProgress"></span></div><small id="leaderStatus">Start the simulation to begin</small></div>
-      <div class="telemetry"><div><span>GENERATION</span><strong id="generation">1</strong></div><div><span>ACTIVE CARS</span><strong id="activeCars">36</strong></div><div><span>CHECKPOINTS</span><strong id="checkpoints">0</strong></div><div><span>BEST LAP</span><strong id="bestLap">—</strong></div></div>
-      <div class="leaderboard-head"><h3>Leaderboard</h3><span>FITNESS / PROGRESS</span></div><div class="leaderboard" id="leaderboard"></div>
-      <div class="inspector"><div class="panel-head"><span>AGENT INSPECTOR</span><span id="inspectorState" class="state-pill">SELECT A CAR</span></div><div class="inspector-title"><div class="agent-avatar" id="agentAvatar">—</div><div><b id="agentTitle">No agent selected</b><small id="agentSub">Click a leaderboard row</small></div></div><div class="inspector-grid"><div><small>SPEED</small><b id="iSpeed">—</b></div><div><small>FITNESS</small><b id="iFitness">—</b></div><div><small>CHECKPOINTS</small><b id="iCheckpoints">—</b></div><div><small>COLLISIONS</small><b id="iCollisions">—</b></div></div></div>
-    </aside>
-  </main>
-</div>
-<script type="module" src="./src/main.js"></script>
+<main><canvas id="c"></canvas><div id="bar"></div></main>
+<aside>
+  <h1>NEURAL RACERS <span id="gen"></span></h1>
+  <div id="stats"></div>
+  <h2>LEADERBOARD</h2><div id="lb"></div>
+  <h2>FITNESS (best / mean)</h2><canvas id="ch" width="240" height="80"></canvas>
+</aside>
+<script src="js/track.js"></script><script src="js/sim.js"></script><script src="js/ui.js"></script>
 </body></html>
