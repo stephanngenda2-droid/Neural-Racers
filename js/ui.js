@@ -81,5 +81,9 @@ $('lb').onclick = e => { const i = e.target.closest('.lb')?.dataset.i; if (i !==
 onkeydown = e => { if (e.code === 'Space') { paused = !paused; refreshButtons(); e.preventDefault(); } else if ('1234'.includes(e.key)) { si = +e.key - 1; refreshButtons(); } };
 onresize = resize;
 let fr = 0;
-(function loop() { if (!paused) for (let i = 0; i < SPEEDS[si]; i++) stepOnce(); draw(); if (fr++ % 6 === 0) panel(); requestAnimationFrame(loop); })();
-load('Beginner'); resize(); refreshButtons();
+function loop() {
+  try { if (!paused) for (let i = 0; i < SPEEDS[si]; i++) stepOnce(); draw(); if (fr++ % 6 === 0) panel(); }
+  catch (e) { console.error(e); }
+  requestAnimationFrame(loop);
+}
+load('Beginner'); resize(); refreshButtons(); loop();
