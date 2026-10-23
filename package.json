@@ -1,0 +1,1 @@
+{"name":"neural-racers-web","version":"1.0.0","private":true,"type":"module","scripts":{"start":"python -m http.server 8000"},"description":"Browser-based 3D neuroevolution racing simulation"}
