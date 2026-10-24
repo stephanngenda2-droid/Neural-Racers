@@ -30,13 +30,19 @@ class Sim {
   constructor(track, cfg) { this.tr = track; this.cfg = cfg; this.reset(); }
   reset() {
     this.R = rng(this.cfg.seed); this.gen = 1; this.history = []; this.bestEver = null;
-    this.nets = Array.from({length: this.cfg.pop}, () => randomNet(this.R)); this.spawn();
+    this.nets = Array.from({length: this.cfg.pop}, () => randomNet(this.R));
+    this.mine = this.template && this.cfg.mode !== 'watch' ? makeMine(this.template, this.cfg.mode === 'tune') : []; this.spawn();
+  }
+  setMine(rules, mode, restart) {   // player's block-built cars: one (race) or a tuned family of eight (tune)
+    this.cfg.mode = mode; this.template = cloneRules(rules);
+    this.mine = mode === 'watch' ? [] : makeMine(this.template, mode === 'tune'); if (restart) this.spawn();
   }
   spawn() {
     const t = this.tr, N = t.N; this.t = 0; this.done = false;
-    this.cars = this.nets.map((net, i) => {
+    const ents = [...this.mine.map(r => ({rules: r, mine: true})), ...this.nets.map(net => ({net}))];
+    this.cars = ents.map((e, i) => {
       const off = Math.round(Math.floor(i / 4) * 26 / t.sp), idx = ((-off) % N + N) % N, th = t.theta[idx], lat = ((i % 4) - 1.5) * .2 * t.width;
-      return {net, i, x: t.c[idx][0] - Math.sin(th) * lat, y: t.c[idx][1] + Math.cos(th) * lat, th, vx: 0, vy: 0, om: 0, st: RACING,
+      return {net: e.net, rules: e.rules, mine: !!e.mine, i, x: t.c[idx][0] - Math.sin(th) * lat, y: t.c[idx][1] + Math.cos(th) * lat, th, vx: 0, vy: 0, om: 0, st: RACING,
         idx, prog: -off, p0: -off, pmax: -off, cps: 0, laps: 0, hits: 0, contact: false, dist: 0, idle: 0, refP: -off, refT: 0,
         fast: Infinity, last: 0, fin: NaN, out: [0, 0, 0], obs: new Float64Array(10)};
     });
@@ -56,7 +62,7 @@ class Sim {
     for (const c of this.cars) {
       if (c.st !== RACING) continue;
       this.observe(c);
-      const o = forward(c.net, c.obs), steer = o[0], thr = (o[1] + 1) / 2, brk = Math.min(1, Math.max(0, (o[2] - .2) / .8));
+      const o = c.rules ? ruleOut(c.rules, c.obs) : forward(c.net, c.obs), steer = o[0], thr = (o[1] + 1) / 2, brk = Math.min(1, Math.max(0, (o[2] - .2) / .8));
       c.out = [steer, thr, brk];
       const ox = c.x, oy = c.y, c0 = Math.cos(c.th), s0 = Math.sin(c.th);
       let vf = c.vx * c0 + c.vy * s0, vl = -c.vx * s0 + c.vy * c0;
@@ -105,25 +111,31 @@ class Sim {
     return f - .5 * Math.min(c.hits, 20) - 5 * c.idle / cfg.time;
   }
   record() {
-    const f = this.cars.map(c => this.fitness(c)), n = f.length, s = [...f].sort((a, b) => a - b), bi = f.indexOf(Math.max(...f));
+    const A = this.cars.filter(c => !c.mine), M = this.cars.filter(c => c.mine), f = A.map(c => this.fitness(c)), n = f.length, s = [...f].sort((a, b) => a - b);
+    const bi = f.indexOf(s[n - 1]);
     if (!this.bestEver || f[bi] > this.bestEver.fitness) this.bestEver = {fitness: f[bi], gen: this.gen};
-    const fast = Math.min(...this.cars.map(c => c.fast));
+    const fast = Math.min(...A.map(c => c.fast)), mf = Math.min(...M.map(c => c.fast));
     this.history.push({gen: this.gen, best: s[n - 1], mean: f.reduce((a, b) => a + b) / n, median: s[n >> 1],
-      lapRate: this.cars.filter(c => c.laps >= 1).length / n, crashes: this.cars.filter(c => c.st === CRASHED || c.st === STUCK).length,
-      avgCps: this.cars.reduce((a, c) => a + c.cps, 0) / n, fastest: isFinite(fast) ? fast : null});
+      lapRate: A.filter(c => c.laps >= 1).length / n, crashes: A.filter(c => c.st === CRASHED || c.st === STUCK).length,
+      avgCps: A.reduce((a, c) => a + c.cps, 0) / n, fastest: isFinite(fast) ? fast : null,
+      mine: M.length ? Math.max(...M.map(c => this.fitness(c))) : null, mineFast: isFinite(mf) ? mf : null});
   }
   evolve() {   // elites copied unchanged; children = tournament parents -> uniform crossover -> Gaussian mutation
     if (!this.done) { this.cars.forEach(c => { if (c.st === RACING) c.st = TIMEOUT; }); this.done = true; this.record(); }
-    const cfg = this.cfg, P = this.cars.length, f = this.cars.map(c => this.fitness(c));
+    const cfg = this.cfg, A = this.cars.filter(c => !c.mine), P = A.length, f = A.map(c => this.fitness(c)), nets = A.map(c => c.net);
     const order = f.map((_, i) => i).sort((a, b) => f[b] - f[a]), ne = Math.max(1, Math.round(P * cfg.elite));
-    const pick = () => { let b = Math.floor(this.R() * P); for (let k = 1; k < cfg.tk; k++) { const j = Math.floor(this.R() * P); if (f[j] > f[b]) b = j; } return this.nets[b]; };
-    const next = order.slice(0, ne).map(i => cloneNet(this.nets[i]));
+    const pick = () => { let b = Math.floor(this.R() * P); for (let k = 1; k < cfg.tk; k++) { const j = Math.floor(this.R() * P); if (f[j] > f[b]) b = j; } return nets[b]; };
+    const next = order.slice(0, ne).map(i => cloneNet(nets[i]));
     while (next.length < P) {
       const a = pick(), b = pick(), ch = cloneNet(a);
       for (const key of ['W', 'b']) ch[key].forEach((arr, l) => { for (let k = 0; k < arr.length; k++) {
         if (this.R() < .5) arr[k] = b[key][l][k];
         if (this.R() < cfg.mut) arr[k] += gauss(this.R) * cfg.str; } });
       next.push(ch);
+    }
+    if (cfg.mode === 'tune') {   // auto-tune: the best of last generation's rule variants becomes the new template
+      const M = this.cars.filter(c => c.mine), best = M.reduce((a, c) => this.fitness(c) > this.fitness(a) ? c : a);
+      this.template = cloneRules(best.rules); this.mine = makeMine(this.template, true);
     }
     this.nets = next; this.gen++; this.spawn();
   }
